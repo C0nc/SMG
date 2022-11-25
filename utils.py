@@ -18,6 +18,7 @@ from tensorboardX import SummaryWriter
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 
+
 def accuracy(y_pred, y_true):
     y_true = y_true.squeeze().long()
     preds = y_pred.max(1)[1].type_as(y_true)
