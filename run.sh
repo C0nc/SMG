@@ -1,9 +1,6 @@
-for ppi in 0 
+for ppi in 0 1 2 3 4 5
 do
-    for inductive_ppi in 1 2 3 4 5
-    do
-        python /data/guest/GraphMAE/main_transductive.py  --ppi=$ppi --inductive_ppi=$inductive_ppi 
-    done
+    python /home/yancui/ppimae/main_transductive.py  --ppi=$ppi   --lr_f=0.01 --weight_decay_f=0.001 --residual --inductive_ppi=-1 --expression
 done
 
 

@@ -1,6 +1,7 @@
 import logging
 from tqdm import tqdm
 import numpy as np
+import random
 
 import dgl
 from dgl.nn.pytorch.glob import SumPooling, AvgPooling, MaxPooling
@@ -21,13 +22,85 @@ from graphmae.utils import (
     get_current_lr,
     load_best_configs,
 )
+
+import sys 
 from graphmae.datasets.data_util import load_graph_classification_dataset
 from graphmae.models import build_model
+from GNNSubNet.GNNSubNet.dataset import load_OMICS_dataset, convert_to_s2vgraph
 
 
+def get_graph():
+    loc   = "/home/yancui/ppimae/GNNSubNet/TCGA"
+# PPI network
+    ppi   = f'{loc}/KIDNEY_RANDOM_PPI.txt'
+# single-omic features
+#feats = [f'{loc}/KIDNEY_RANDOM_Methy_FEATURES.txt']
+# multi-omic features
+    feats = [f'{loc}/KIDNEY_RANDOM_mRNA_FEATURES.txt', f'{loc}/KIDNEY_RANDOM_Methy_FEATURES.txt']
+# outcome class
+    targ  = f'{loc}/KIDNEY_RANDOM_TARGET.txt'
+    dataset, gene_names =load_OMICS_dataset(ppi, feats, targ, True, 950, True)
+    graphs_class_0_list = []
+    graphs_class_1_list = []
+    for graph in dataset:
+        if graph.y.numpy() == 0:
+            graphs_class_0_list.append(graph)
+        else:
+            graphs_class_1_list.append(graph)
+
+    graphs_class_0_len = len(graphs_class_0_list)
+    graphs_class_1_len = len(graphs_class_1_list)
+
+    print(f"Graphs class 0: {graphs_class_0_len}, Graphs class 1: {graphs_class_1_len}")
+
+    ########################################################################################################################
+    # Downsampling of the class that contains more elements ===========================================================
+    # ########################################################################################################################
+
+    if graphs_class_0_len >= graphs_class_1_len:
+        random_graphs_class_0_list = random.sample(graphs_class_0_list, graphs_class_1_len)
+        balanced_dataset_list = graphs_class_1_list + random_graphs_class_0_list
+
+    if graphs_class_0_len < graphs_class_1_len:
+        random_graphs_class_1_list = random.sample(graphs_class_1_list, graphs_class_0_len)
+        balanced_dataset_list = graphs_class_0_list + random_graphs_class_1_list
+
+    #print(len(random_graphs_class_0_list))
+    #print(len(random_graphs_class_1_list))
+
+    random.shuffle(balanced_dataset_list)
+    print(f"Length of balanced dataset list: {len(balanced_dataset_list)}")
+
+    list_len = len(balanced_dataset_list)
+    #print(list_len)
+    train_set_len = int(list_len * 4 / 5)
+    train_dataset_list = balanced_dataset_list[:train_set_len]
+    test_dataset_list  = balanced_dataset_list[train_set_len:]
+
+    train_graph_class_0_nr = 0
+    train_graph_class_1_nr = 0
+    for graph in train_dataset_list:
+        if graph.y.numpy() == 0:
+            train_graph_class_0_nr += 1
+        else:
+            train_graph_class_1_nr += 1
+    print(f"Train graph class 0: {train_graph_class_0_nr}, train graph class 1: {train_graph_class_1_nr}")
+
+    test_graph_class_0_nr = 0
+    test_graph_class_1_nr = 0
+    for graph in test_dataset_list:
+        if graph.y.numpy() == 0:
+            test_graph_class_0_nr += 1
+        else:
+            test_graph_class_1_nr += 1
+    print(f"Validation graph class 0: {test_graph_class_0_nr}, validation graph class 1: {test_graph_class_1_nr}")
+
+    s2v_train_dataset = convert_to_s2vgraph(train_dataset_list)
+    s2v_test_dataset  = convert_to_s2vgraph(test_dataset_list)
+    return s2v_train_dataset, s2v_test_dataset
 
 
-def graph_classification_evaluation(model, pooler, dataloader, train_mask, num_classes, lr_f, weight_decay_f, max_epoch_f, device, mute=False):
+def graph_classification_evaluation(model, pooler, dataloader,  num_classes, lr_f, weight_decay_f, max_epoch_f, device, mute=False):
     model.eval()
     x_list = []
     y_list = []
@@ -42,20 +115,19 @@ def graph_classification_evaluation(model, pooler, dataloader, train_mask, num_c
             x_list.append(out.cpu().numpy())
     x = np.concatenate(x_list, axis=0)
     y = np.concatenate(y_list, axis=0)
-    test_f1, test_std = evaluate_graph_embeddings_using_svm(x, y, train_mask)
+    test_f1, test_std = evaluate_graph_embeddings_using_svm(x, y)
     print(f"#Test_f1: {test_f1:.4f}±{test_std:.4f}")
     return test_f1
 
 
-def evaluate_graph_embeddings_using_svm(embeddings, labels, train_index):
+def evaluate_graph_embeddings_using_svm(embeddings, labels):
     result = []
-    test_index = train_index
     kf = StratifiedKFold(n_splits=10, shuffle=True, random_state=0)
-    for train_index_1, test_index_1 in kf.split(embeddings, labels):
-        x_train = embeddings[:train_index]
-        x_test = embeddings[test_index:]
-        y_train = labels[:train_index]
-        y_test = labels[test_index:]
+    for train_index, test_index in kf.split(embeddings, labels):
+        x_train = embeddings[train_index]
+        x_test = embeddings[test_index]
+        y_train = labels[train_index]
+        y_test = labels[test_index]
         params = {"C": [1e-3, 1e-2, 1e-1, 1, 10]}
         svc = SVC(random_state=42)
         clf = GridSearchCV(svc, params)
@@ -137,7 +209,11 @@ def main(args):
     deg4feat = args.deg4feat
     batch_size = args.batch_size
 
-    graphs, (num_features, num_classes), train_mask = load_graph_classification_dataset(dataset_name, deg4feat=deg4feat)
+    train_set, test_set = get_graph()
+    graphs = train_set + test_set
+    num_features = graphs[0][0].ndata["attr"].shape[1]
+    num_classes = 2
+    
     args.num_features = num_features
 
     train_idx = torch.arange(len(graphs))
@@ -191,7 +267,7 @@ def main(args):
         
         model = model.to(device)
         model.eval()
-        test_f1 = graph_classification_evaluation(model, pooler, eval_loader, train_mask, num_classes, lr_f, weight_decay_f, max_epoch_f, device, mute=False)
+        test_f1 = graph_classification_evaluation(model, pooler, eval_loader, num_classes, lr_f, weight_decay_f, max_epoch_f, device, mute=False)
         acc_list.append(test_f1)
 
     final_acc, final_acc_std = np.mean(acc_list), np.std(acc_list)
@@ -202,5 +278,6 @@ if __name__ == "__main__":
     args = build_args()
     if args.use_cfg:
         args = load_best_configs(args, "configs.yml")
+    args.max_epoch = 0
     print(args)
     main(args)

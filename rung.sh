@@ -1,4 +1,4 @@
-for dataset in IMDB-BINARY IMDB-MULTI PROTEINS MUTAG REDDIT-BINARY COLLAB NCI1
+for dataset in IMDB-MULTI # PROTEINS IMDB-BINARY 
 do
-    python main_graph.py --use_cfg --dataset=$dataset --activation='relu'
+    python main_graph.py --use_cfg --dataset=$dataset --activation='relu'  
 done
