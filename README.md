@@ -2,20 +2,22 @@
 ```markdown
 ## Project Name
 
-Description of your project.
+Self-Supervised based Graph Autoencoder for Cancer Gene Identification
+
+
 
 ## Installation
 
 1. Clone the repository:
 
    ```shell
-   git clone https://github.com/your-username/your-repo.git
+   git clone https://github.com/C0nc/SMG.git
    ```
 
 2. Navigate to the project directory:
 
    ```shell
-   cd your-repo
+   cd SMG
    ```
 
 3. Install the required dependencies:
@@ -36,39 +38,18 @@ Description of your project.
 
    Provide the required arguments based on your project's needs. Below are the available arguments:
 
-   - `--option1`: Description of option 1.
-   - `--option2`: Description of option 2.
-   - `--option3`: Description of option 3.
+   - `--ppi`: Choice the train protein-protein Intecation network based on defined network index.
+   - `--inductive-ppi`: Choice the test protein-protein Intecation network based on defined network index (Whne inductive needs).
+   - `--expression`: Change the task into the essential gene prediction.
+   - '--health' Change the task into the health gene prediction.
 
-   Modify the `run.sh` script according to your specific project requirements and the available options.
+.
 
-2. Follow the on-screen instructions or navigate to the appropriate URL to access the project.
+## Data available:
 
-## Contributing
+Get the needed data from this googel driver link:
 
-If you would like to contribute to this project, please follow these steps:
 
-1. Fork the repository.
-
-2. Create a new branch:
-
-   ```shell
-   git checkout -b new-feature
-   ```
-
-3. Make your changes and commit them:
-
-   ```shell
-   git commit -m "Add new feature"
-   ```
-
-4. Push to the branch:
-
-   ```shell
-   git push origin new-feature
-   ```
-
-5. Create a pull request with a detailed description of your changes.
 
 ## License
 
