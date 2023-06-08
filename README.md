@@ -41,7 +41,7 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
    - `--ppi`: Choice the train protein-protein Intecation network based on defined network index.
    - `--inductive-ppi`: Choice the test protein-protein Intecation network based on defined network index (Whne inductive needs).
    - `--expression`: Change the task into the essential gene prediction.
-   - '--health' Change the task into the health gene prediction.
+   - `--healthL`: Change the task into the health gene prediction.
 
 .
 
