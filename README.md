@@ -43,13 +43,13 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
    - `--expression`: Change the task into the essential gene prediction.
    - `--healthL`: Change the task into the health gene prediction.
 
- 2. Run to train the model to predict the graph property.:
+2. Run to train the model to predict the graph property.:
 
    ```shell
    python main_graph.py [arguments]
    ```
 
- 3. Run to conduct the post-hoc explaination by the GNNExpainer and the Ingrated Gradient:
+3. Run to conduct the post-hoc explaination by the GNNExpainer and the Ingrated Gradient:
 
    ```shell
    python explain.py [arguments]
