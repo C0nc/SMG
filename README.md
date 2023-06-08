@@ -62,11 +62,21 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
    python explain.py [arguments]
    ```
 
-4. Run to conduct the Gene Set Enrichment Analyse based on the Ingarated Gradient Results, you can choice your target background gene set:
+4. Run to conduct the Gene Set Enrichment Analyse based on the Ingarated Gradient Results, you can choice your wanted gene set:
 
    ```shell
    python enrich.py [arguments]
    ```
+
+## Reference Website:
+
+1. You can choice the target gene sets based on the list in this reference website:
+
+https://maayanlab.cloud/Enrichr/
+
+2.The more information about the Cancer Gene can be found in :
+
+http://ncg.kcl.ac.uk/
 
 ## Data available:
 
