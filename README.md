@@ -4,7 +4,7 @@
 
 Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
-![Alt Text](/figure/figure1)
+![Figure](figure/figure1.png)
 
 ## Installation
 
