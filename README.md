@@ -49,13 +49,6 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
    python main_graph.py [arguments]
    ```
 
-   Provide the required arguments based on your project's needs. Below are the available arguments:
-
-   - `--ppi`: Choice the train protein-protein Intecation network based on defined network index.
-   - `--inductive-ppi`: Choice the test protein-protein Intecation network based on defined network index (Whne inductive needs).
-   - `--expression`: Change the task into the essential gene prediction.
-   - `--healthL`: Change the task into the health gene prediction.
-
  3. Run to conduct the post-hoc explaination by the GNNExpainer and the Ingrated Gradient:
 
    ```shell
@@ -73,6 +66,7 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 1. You can choice the target gene sets based on the list in this reference website:
 
 https://maayanlab.cloud/Enrichr/
+
 
 2.The more information about the Cancer Gene can be found in :
 
