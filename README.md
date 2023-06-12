@@ -66,7 +66,8 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
    ```
 
 
-## Reference Website:
+## Reference Website
+
 
 1. You can choice the target gene sets enrichment analysis based on the list in this reference website:
 
@@ -77,7 +78,7 @@ https://maayanlab.cloud/Enrichr/
 
 http://ncg.kcl.ac.uk/
 
-## Data available:
+## Data available
 
 Get the needed data from this googel driver link:
 https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link
