@@ -30,9 +30,12 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
 ## Usage
 
-0.Predefined protein-protein interaction network index:
 
+
+0. Predefined protein-protein interaction network index:
+  ```shell
 ['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
+  ```
 
 
 1. Run to train the model to predict the gene nodes by the semi-supervised transductive learning:
