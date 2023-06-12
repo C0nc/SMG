@@ -82,7 +82,7 @@ http://ncg.kcl.ac.uk/
 
 ## Data available
 
-Get the needed data from this googel driver link:
+Get the data from this googel driver link:
 https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link
 
 ## License
