@@ -1,6 +1,6 @@
 ## Project Name
 
-Self-Supervised Based Graph Autoencoder for Cancer Gene Identification
+SMG: self-supervised masked graph learning for cancer gene identification.
 
 ![Figure](figure/figure1.png)
 
