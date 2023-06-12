@@ -1,8 +1,8 @@
-
+Sure! Here's the corrected version of the Markdown:
 
 ## Project Name
 
-Self-Supervised based Graph Autoencoder for Cancer Gene Identification
+Self-Supervised Based Graph Autoencoder for Cancer Gene Identification
 
 ![Figure](figure/figure1.png)
 
@@ -30,13 +30,11 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
 ## Usage
 
-
-
 0. Predefined protein-protein interaction network index:
-  ```shell
-['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
-  ```
 
+   ```shell
+   ['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
+   ```
 
 1. Run to train the model to predict the gene nodes by the semi-supervised transductive learning:
 
@@ -46,46 +44,44 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
    Provide the required arguments based on your project's needs. Below are the available arguments:
 
-   - `--ppi`: Choose the train protein-protein Intecation network based on defined network index.
-   - `--inductive-ppi`: Choice the test protein-protein Intecation network based on defined network index (When inductive needs).
-   - `--expression`: Change the task into the essential gene prediction.
-   - `--health`: Change the task into the health gene prediction.
+   - `--ppi`: Choose the train protein-protein interaction network based on the defined network index.
+   - `--inductive-ppi`: Choose the test protein-protein interaction network based on the defined network index (when inductive learning is needed).
+   - `--expression`: Change the task to essential gene prediction.
+   - `--health`: Change the task to health gene prediction.
 
-2. Run to train the model to predict the graph property.:
+2. Run to train the model to predict the graph property:
 
    ```shell
    python main_graph.py --use_cfg [arguments]
    
-   -  `task`: Choose the architecture GIN_graph/GCN_graph
+   - `task`: Choose the architecture GIN_graph/GCN_graph
    ```
 
-3. Run to conduct the post-hoc explaination by the GNNExpainer and the Ingrated Gradient:
+3. Run to conduct the post-hoc explanation by the GNNExplainer and the Integrated Gradient:
 
    ```shell
    python main_transductive.py [arguments] 
   
-   -  `GE`: Utilize the GrpahExplainer to explain the prediction results.
-   -  `IGE`: Utilize the Ingrated Gradient to explain the prediction results.
+   - `GE`: Utilize the GraphExplainer to explain the prediction results.
+   - `IGE`: Utilize the Integrated Gradient to explain the prediction results.
    ```
-
 
 ## Reference Website
 
-1.You can choice the target gene sets enrichment analysis based on the list in this reference website:
+1. You can choose the target gene sets enrichment analysis based on the list in this reference website:
 
-https://maayanlab.cloud/Enrichr/
+   [https://maayanlab.cloud/Enrichr/](https://maayanlab.cloud/Enrichr/)
 
+2. More information about Cancer Gene can be found at:
 
-2.The more information about the Cancer Gene can be found in :
-
-http://ncg.kcl.ac.uk/
+   [http://ncg.kcl.ac.uk/](http://ncg.kcl.ac.uk/)
 
 ## Data available
 
-Get the data from this googel driver link:
-https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link
+Get the data from this Google Drive link:
+
+[https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link](https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link)
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
