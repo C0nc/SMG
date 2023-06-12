@@ -36,8 +36,9 @@ import matplotlib.pyplot as plt
 
 Dataset = ['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
 
+PATH = 'graphmae/datasets/'
 
-f = h5py.File('/home/yancui/ppimae/{}_multiomics.h5'.format(Dataset[0]), 'r') 
+f = h5py.File(PATH+'{}_multiomics.h5'.format(Dataset[0]), 'r') 
 genes = f['gene_names'][...,-1].astype(str)
 
 np.save('genes', genes)
@@ -56,13 +57,14 @@ def draw_tSNE(embed, y, ppi):
     return
 
 def get_health(dataset=0):
-    k = pd.read_csv('/home/yancui/ppimae/graphmae/datasets/health.tsv', sep='\t').astype(str)
-    f = h5py.File('/home/yancui/ppimae/{}_multiomics.h5'.format(dataset), 'r') 
+    k = pd.read_csv(PATH + 'health.tsv', sep='\t').astype(str)
+    f = h5py.File(PATH+'{}_multiomics.h5'.format(dataset), 'r') 
     positive = k['symbol'].unique()
     name = [x.decode() for x in list(f['gene_names'][:][..., 1])]
     print(len(positive))
     mask_test = f['mask_test'][:]
     mask_train = f['mask_train'][:]
+    mask_val = f['mask_val'][:]
     y_train = f['y_train'][:]
     positive_mask_test = np.nonzero(mask_test == True)[0]
     positive_mask_train = np.nonzero(mask_test == True)[0]
@@ -88,7 +90,7 @@ def get_health(dataset=0):
     te_mask = list(set(pos_mask_test) | set(neg_mask_test))
     train_mask[t_mask] = True
     test_mask[te_mask] = True
-    print(len(t_mask), len(te_mask))
+    #print(len(t_mask), len(te_mask))
     y = np.zeros_like(y_train)
     for i in neg_mask_train:
         y[i] = True
@@ -109,19 +111,17 @@ def get_ppi(dataset=0, essential_gene=False, health_gene=False):
     if health_gene:
         return get_health(dataset)
     elif essential_gene:
-        f = h5py.File('/home/yancui/ppimae/{}_essential_test01_multiomics.h5'.format(dataset), 'r')
+        f = h5py.File(PATH + '{}_essential_test01_multiomics.h5'.format(dataset), 'r')
     else:
-        f = h5py.File('/home/yancui/ppimae/{}_multiomics.h5'.format(dataset), 'r') 
+        f = h5py.File(PATH+'{}_multiomics.h5'.format(dataset), 'r') 
     src, dst = np.nonzero(f['network'][:])
     graph = dgl.graph((src, dst))
-    #datas = torch.load("/data/guest/MTGCN/data/str_fearures.pkl").to("cpu")
-    #name = torch.from_numpy(f['gene_names'][:])
     graph.ndata['name'] = torch.arange(f['features'][:].shape[0]).unsqueeze(1)
     graph.ndata['feat'] = torch.from_numpy(f['features'][:])
     graph.ndata['train_mask'] = torch.from_numpy(f['mask_train'][:])
-    graph.ndata['val_mask'] = torch.from_numpy(f['mask_test'][:])
+    graph.ndata['val_mask'] = torch.from_numpy(f['mask_val'][:])
     graph.ndata['test_mask'] = torch.from_numpy(f['mask_test'][:])
-    full_mask = np.arange(graph.ndata['val_mask'].shape[0])[graph.ndata['val_mask'] | graph.ndata['train_mask']]
+    full_mask = np.arange(graph.ndata['val_mask'].shape[0])[graph.ndata['test_mask'] | graph.ndata['train_mask']]
     graph.ndata['label'] = torch.from_numpy(np.logical_or(np.logical_or(f['y_test'][:], f['y_val'][:]), f['y_train'][:])).float()
     return graph, (graph.ndata["feat"].shape[1], 2)
 
@@ -153,16 +153,12 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
             loss_dict["lr"] = get_current_lr(optimizer)
             logger.note(loss_dict, step=epoch)
 
-        #if (epoch + 1) % 5 == 0:
-            #node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob=True, mute=True)
-    # return best_model
     return model
 
 
 def main(args):
     device = args.device if args.device >= 0 else "cpu"
     seeds = args.seeds
-    dataset_name = args.dataset
     max_epoch = args.max_epoch
     max_epoch_f = args.max_epoch_f
     num_hidden = args.num_hidden
@@ -184,16 +180,12 @@ def main(args):
     logs = args.logging
     use_scheduler = args.scheduler
 
-    graph, (num_features, num_classes) = get_ppi(dataset=args.ppi, essential_gene=args.expression, health_gene=True)   
+    graph, (num_features, num_classes) = get_ppi(dataset=args.ppi, essential_gene=args.essential, health_gene=args.health)   
     args.num_features = num_features
 
     acc_list = []
     estp_acc_list = []
-  
-
-    #full_mask = np.arange(graph.ndata['val_mask'].shape[0])[graph.ndata['val_mask'] | graph.ndata['train_mask']]
-    
-    #kf = KFold(n_splits=5, random_state=None, shuffle=True)    
+ 
 
     for i in [0]:
         print(f"####### Run {i} for seed {0}")
@@ -203,6 +195,7 @@ def main(args):
             logger = TBLogger(name=f"{dataset_name}_loss_{loss_fn}_rpr_{replace_rate}_nh_{num_hidden}_nl_{num_layers}_lr_{lr}_mp_{max_epoch}_mpf_{max_epoch_f}_wd_{weight_decay}_wdf_{weight_decay_f}_{encoder_type}_{decoder_type}")
         else:
             logger = None
+    
 
         model = build_model(args)
         model.to(device)
@@ -211,8 +204,6 @@ def main(args):
         if use_scheduler and max_epoch !=0:
             logging.info("Use schedular")
             scheduler = lambda epoch :( 1 + np.cos((epoch) * np.pi / max_epoch) ) * 0.5
-            # scheduler = lambda epoch: epoch / warmup_steps if epoch < warmup_steps \
-                    # else ( 1 + np.cos((epoch - warmup_steps) * np.pi / (max_epoch - warmup_steps))) * 0.5
             scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=scheduler)
         else:
             scheduler = None
@@ -254,29 +245,22 @@ def main(args):
     labels = graph.ndata["label"].to(device)
     
     
-    torch.save(embed[-1][train_mask], 'embed_{}_e.pt'.format(args.ppi))
-    torch.save(labels[train_mask], 'y_{}_e.pt'.format(args.ppi))
-    draw_tSNE(embed[-1][train_mask], labels[train_mask], args.ppi)
-    
-    
     final_acc, final_acc_std = np.mean(acc_list), np.std(acc_list)
     estp_acc, estp_acc_std = np.mean(estp_acc_list), np.std(estp_acc_list)
     print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
     print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
     if args.max_epoch > 2:
         args.encoder = "mae"
-    #np.savetxt('{}_{}'.format(args.encoder, Dataset[args.ppi]), np.array(estp_acc_list))
-    np.savetxt('{}_{}_pre'.format(args.encoder, Dataset[args.ppi]), precision)
-    np.savetxt('{}_{}_recall'.format(args.encoder, Dataset[args.ppi]),  recall)
     return graph, x, best_model
 
 
+import sys
+
+import matplotlib.pyplot as plt
 from dgl.nn.pytorch.explain import GNNExplainer
 from captum.attr import IntegratedGradients
 from dgl.nn import GraphConv
 from functools import partial
-
-
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -284,13 +268,10 @@ import networkx as nx
 import seaborn as sns
 from pandas import DataFrame
 
-
 def GNNexplain(graph, feat, model):
     explainer = GNNExplainer(model, num_hops=1)
     transform = dgl.ToSimple()   
     new_center, sg, feat_mask, edge_mask = explainer.explain_node(20, graph, feat)
-    #print(sg.edges())
-    #print(edge_mask)
     dgl.save_graphs('sg.bin', [sg])
     torch.save(edge_mask, 'edge_mask.pt')
     sg.edata['mask'] = edge_mask
@@ -331,21 +312,6 @@ def GNNexplain(graph, feat, model):
         font_size = 3,
         font_weight = 'bold'
     )
-    #nodes = nx.draw_networkx_nodes(G, pos, node_size=node_sizes, node_color="indigo")
-    # set alpha value for each edge
-
-    #ax.margins(0.1, 0.05)
-    #fig.tight_layout()
-    #plt.axis("off")
-    #plt.savefig('Ex.pdf', format='pdf')
-    #plt.close()
-
-    #feat_mask = feat_mask.to("cpu").detach()
-
-    #feat = DataFrame({"Mutation": feat_mask[:16], "CNAs": feat_mask[16:32], "Methylation": feat_mask[32:48], "Expression":feat_mask[48:]})
-    #print(feat.head())
-    #cmapz = sns.color_palette("ch:start=.2,rot=-.3", as_cmap=True)
-    #sns.heatmap(feat, cmap=cmapz)
     
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin = min(edge_colors), vmax=max(edge_colors)))
     plt.colorbar(sm)
@@ -371,8 +337,8 @@ def IG(graph, feat, model):
     feat_attr = ig.attribute(h, target=0, internal_batch_size=graph.num_nodes(), n_steps=50)
     node_weights = feat_attr.abs().sum(dim=1)
     torch.save(graph.ndata['name'], 'name.pt') 
+    torch.save(node_weights, 'feat.pt')
 
-import sys
 
 # Press the green button in the gutter to run the script.
 if __name__ == "__main__":
@@ -382,8 +348,10 @@ if __name__ == "__main__":
     print(args)
     try:
         graph, x, best_model = main(args)
-        #GNNexplain(graph.to('cuda'), x.to('cuda'), best_model.to('cuda'))
-        IG(graph.to('cuda'), x.to('cuda'), best_model.to('cuda'))
+        if args.GE:
+            GNNexplain(graph.to('cuda'), x.to('cuda'), best_model.to('cuda'))
+        if args.IGE:
+            IG(graph.to('cuda'), x.to('cuda'), best_model.to('cuda'))
     except Exception:
         import traceback
         import pdb

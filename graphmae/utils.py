@@ -43,7 +43,7 @@ def get_current_lr(optimizer):
 def build_args():
     parser = argparse.ArgumentParser(description="GAT")
     parser.add_argument("--seeds", type=int, nargs="+", default=[0])
-    parser.add_argument("--dataset", type=str, default="cora")
+    #parser.add_argument("--dataset", type=str, default="cora")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--max_epoch", type=int, default=1500,
                         help="number of training epochs")
@@ -57,7 +57,7 @@ def build_args():
                         help="number of hidden layers")
     parser.add_argument("--num_hidden", type=int, default=256,
                         help="number of hidden units")
-    parser.add_argument("--residual", action="store_true", default=False,
+    parser.add_argument("--residual", action="store_true", default=True,
                         help="use residual connection")
     parser.add_argument("--in_drop", type=float, default=.4,
                         help="input feature dropout")
@@ -89,7 +89,7 @@ def build_args():
     parser.add_argument("--load_model", action="store_true")
     parser.add_argument("--save_model", action="store_true")
     parser.add_argument("--use_cfg", action="store_true")
-    parser.add_argument("--logging", action="store_true", default=True)
+    parser.add_argument("--logging", action="store_true", default=False)
     parser.add_argument("--scheduler", action="store_true", default=True)
     parser.add_argument("--concat_hidden", action="store_true", default=False)
 
@@ -97,11 +97,15 @@ def build_args():
     parser.add_argument("--pooling", type=str, default="mean")
     parser.add_argument("--deg4feat", action="store_true", default=False, help="use node degree as input feature")
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--inductive_ppi", type=int, default=1)
+    parser.add_argument("--inductive_ppi", type=int, default=-1)
     parser.add_argument("--ppi", type=int, default=0)
     parser.add_argument("--health", action="store_true", default=False)
     parser.add_argument("--inducitve", action="store_true", default=False)
-    parser.add_argument("--expression", action="store_true", default=False)   
+    parser.add_argument("--essential", action="store_true", default=False) 
+    parser.add_argument("--task", type=str, default='GIN_graph')  
+    parser.add_argument("--data_path", type=str, default='')
+    parser.add_argument("--GE", action="store_true", default=False)
+    parser.add_argument("--IGE", action="store_true", default=False)
     args = parser.parse_args()
     return args
 
@@ -191,21 +195,23 @@ def drop_edge(graph, drop_rate, return_edges=False):
 
 
 def load_best_configs(args, path):
+    print(args.architecture)
     with open(path, "r") as f:
         configs = yaml.load(f, yaml.FullLoader)
 
-    if args.dataset not in configs:
+    if args.architecture not in configs:
         logging.info("Best args not found")
         return args
 
     logging.info("Using best configs")
-    configs = configs[args.dataset]
+    configs = configs[args.architecture]
 
     for k, v in configs.items():
         if "lr" in k or "weight_decay" in k:
             v = float(v)
         setattr(args, k, v)
     print("------ Use best configs ------")
+    
     return args
 
 

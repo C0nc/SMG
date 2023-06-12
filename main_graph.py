@@ -29,15 +29,17 @@ from graphmae.models import build_model
 from GNNSubNet.GNNSubNet.dataset import load_OMICS_dataset, convert_to_s2vgraph
 
 
+PATH = 'graphmae/datasets/TCGA'
+
 def get_graph():
-    loc   = "/home/yancui/ppimae/GNNSubNet/TCGA"
-# PPI network
+    loc = PATH
+    # PPI network
     ppi   = f'{loc}/KIDNEY_RANDOM_PPI.txt'
-# single-omic features
-#feats = [f'{loc}/KIDNEY_RANDOM_Methy_FEATURES.txt']
-# multi-omic features
+    # single-omic features
+    #feats = [f'{loc}/KIDNEY_RANDOM_Methy_FEATURES.txt']
+    # multi-omic features
     feats = [f'{loc}/KIDNEY_RANDOM_mRNA_FEATURES.txt', f'{loc}/KIDNEY_RANDOM_Methy_FEATURES.txt']
-# outcome class
+    # outcome class
     targ  = f'{loc}/KIDNEY_RANDOM_TARGET.txt'
     dataset, gene_names =load_OMICS_dataset(ppi, feats, targ, True, 950, True)
     graphs_class_0_list = []
@@ -184,7 +186,7 @@ def collate_fn(batch):
 def main(args):
     device = args.device if args.device >= 0 else "cpu"
     seeds = args.seeds
-    dataset_name = args.dataset
+    #dataset_name = args.dataset
     max_epoch = args.max_epoch
     max_epoch_f = args.max_epoch_f
     num_hidden = args.num_hidden
@@ -248,8 +250,6 @@ def main(args):
         if use_scheduler:
             logging.info("Use schedular")
             scheduler = lambda epoch :( 1 + np.cos((epoch) * np.pi / max_epoch) ) * 0.5
-            # scheduler = lambda epoch: epoch / warmup_steps if epoch < warmup_steps \
-                    # else ( 1 + np.cos((epoch - warmup_steps) * np.pi / (max_epoch - warmup_steps))) * 0.5
             scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=scheduler)
         else:
             scheduler = None
@@ -278,6 +278,5 @@ if __name__ == "__main__":
     args = build_args()
     if args.use_cfg:
         args = load_best_configs(args, "configs.yml")
-    args.max_epoch = 0
     print(args)
     main(args)
