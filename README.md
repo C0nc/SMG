@@ -30,6 +30,11 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
 ## Usage
 
+0.Predefined protein-protein interaction network index:
+
+['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
+
+
 1. Run to train the model to predict the gene nodes by the semi-supervised transductive learning:
 
    ```shell
@@ -38,31 +43,32 @@ Self-Supervised based Graph Autoencoder for Cancer Gene Identification
 
    Provide the required arguments based on your project's needs. Below are the available arguments:
 
-   - `--ppi`: Choice the train protein-protein Intecation network based on defined network index.
+   - `--ppi`: Choose the train protein-protein Intecation network based on defined network index.
    - `--inductive-ppi`: Choice the test protein-protein Intecation network based on defined network index (When inductive needs).
    - `--expression`: Change the task into the essential gene prediction.
-   - `--healthL`: Change the task into the health gene prediction.
+   - `--health`: Change the task into the health gene prediction.
 
 2. Run to train the model to predict the graph property.:
 
    ```shell
-   python main_graph.py [arguments]
+   python main_graph.py --use_cfg [arguments]
+   
+   -  `task`: Choose the architecture GIN_graph/GCN_graph
    ```
 
 3. Run to conduct the post-hoc explaination by the GNNExpainer and the Ingrated Gradient:
 
    ```shell
-   python explain.py [arguments]
+   python main_transductive.py [arguments] 
+  
+   -  `GE`: Utilize the GrpahExplainer to explain the prediction results.
+   -  `IGE`: Utilize the Ingrated Gradient to explain the prediction results.
    ```
 
-4. Run to conduct the Gene Set Enrichment Analyse based on the Ingarated Gradient Results, you can choice your wanted gene set:
-
-   ```shell
-   python enrich.py [arguments]
-   ```
 
 ## Reference Website:
-1. You can choice the target gene sets based on the list in this reference website:
+
+1. You can choice the target gene sets enrichment analysis based on the list in this reference website:
 
 https://maayanlab.cloud/Enrichr/
 
@@ -74,8 +80,7 @@ http://ncg.kcl.ac.uk/
 ## Data available:
 
 Get the needed data from this googel driver link:
-
-
+https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link
 
 ## License
 
