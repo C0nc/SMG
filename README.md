@@ -1,4 +1,3 @@
-Sure! Here's the corrected version of the Markdown:
 
 ## Project Name
 
