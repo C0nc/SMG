@@ -1,6 +1,5 @@
-## Project Name
+## SMG: self-supervised masked graph learning for cancer gene identification.
 
-SMG: self-supervised masked graph learning for cancer gene identification.
 
 ![Figure](figure/figure1.png)
 
