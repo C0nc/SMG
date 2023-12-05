@@ -1,6 +1,6 @@
 import logging
 from webbrowser import get
-from matplotlib import test
+#from matplotlib import test
 import numpy as np
 from tqdm import tqdm
 import torch
@@ -25,23 +25,27 @@ from sklearn import model_selection
 import numpy as np
 import pickle
 import h5py
-from openTSNE import TSNE
+#from openTSNE import TSNE
 
-import utils
+#import utils
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 import matplotlib.pyplot as plt
 
 
-Dataset = ['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
 
-PATH = 'graphmae/datasets/'
+def result(pred, true):
+    aa = torch.sigmoid(pred)
+    precision, recall, _thresholds = metrics.precision_recall_curve(true, aa)
+    area = metrics.auc(recall, precision)
+    return metrics.roc_auc_score(true, aa), area, precision, recall
 
-f = h5py.File(PATH+'{}_multiomics.h5'.format(Dataset[0]), 'r') 
-genes = f['gene_names'][...,-1].astype(str)
 
-np.save('genes', genes)
+#f = h5py.File(PATH+'{}_multiomics.h5'.format(Dataset[0]), 'r') 
+#genes = f['gene_names'][...,-1].astype(str)
+
+#np.save('genes', genes)
 
 def draw_tSNE(embed, y, ppi):
     tsne = TSNE(
@@ -57,8 +61,14 @@ def draw_tSNE(embed, y, ppi):
     return
 
 
+Dataset = ['CPDB', 'IRefIndex', 'PCNet', 'IRefIndex_2015', 'STRINGdb', 'Multinet']
+
+PATH = '/data/civy/SMG/smg_data/'
+
+
+
 def get_health(dataset=0):
-    f = h5py.File('/home/yancui/ppimae/'+'{}_multiomics.h5'.format(dataset), 'r') 
+    f = h5py.File('/data/civy/SMG/smg_data/'+'{}_multiomics.h5'.format(dataset), 'r') 
     src, dst = np.nonzero(f['network'][:])
     graph = dgl.graph((src, dst))
     graph.ndata['name'] = torch.arange(f['features'][:].shape[0]).unsqueeze(1)
@@ -71,13 +81,13 @@ def get_health(dataset=0):
 
     label = pd.read_csv(PATH + 'health.tsv', sep='\t').astype(str)['symbol'].tolist()
 
-    mask = [gene_map[g] for g in list((set(label)) & set(gene_name))]
+    mask = [gene_map[g] for g in sorted(list((set(label)) & set(gene_name)))]
 
     #neg_mask = [gene_map[g] for g in list(set(neg_label) - set(label))]
     np.random.seed(42)
-    neg_mask = np.random.choice(list(set(np.arange(len(gene_name))) - set(mask)), min(len(mask),len(gene_name) - len(mask)) , replace=False).tolist()
-    print(len(mask))
+    neg_mask = np.random.choice(sorted(list(set(np.arange(len(gene_name))) - set(mask))), min(len(mask),len(gene_name) - len(mask)) , replace=False).tolist()
 
+    print(neg_mask)
     label = torch.zeros(len(gene_name), dtype=torch.float)
 
     label[mask] = 1
@@ -89,7 +99,7 @@ def get_health(dataset=0):
     final_mask = mask + neg_mask
 
     train_mask, test_mask, _, _ = train_test_split(final_mask, label[final_mask].numpy(), test_size = 0.2, shuffle=True, stratify=label[final_mask].numpy(), random_state=42)
-    
+    train_mask, val_mask, _, _ = train_test_split(train_mask, label[train_mask].numpy(), test_size = 0.2, shuffle=True, stratify=label[train_mask].numpy(),random_state=42)
     
     index = torch.zeros(len(gene_name), dtype=torch.bool)
     index[train_mask] = 1
@@ -102,13 +112,14 @@ def get_health(dataset=0):
     graph.ndata['test_mask'] = index.unsqueeze(1)
     
     index = torch.zeros(len(gene_name), dtype=torch.bool)
-    index[test_mask] = 1
+    index[val_mask] = 1
 
     graph.ndata['val_mask'] = index.unsqueeze(1)
     
     graph = dgl.add_self_loop(graph)
      
-    return graph, (graph.ndata["feat"].shape[1], 2)
+
+    return graph, (graph.ndata["feat"].shape[1], 1)
 
 
 def get_ppi(dataset=0, essential_gene=False, health_gene=False):
@@ -116,9 +127,9 @@ def get_ppi(dataset=0, essential_gene=False, health_gene=False):
     if health_gene:
         return get_health(dataset)
     elif essential_gene:
-        f = h5py.File('/home/yancui/ppimae/' + '{}_essential_test01_multiomics.h5'.format(dataset), 'r')
+         f = h5py.File('/data/civy/SMG/smg_data/'+'{}_essential_test01_multiomics.h5'.format(dataset), 'r') 
     else:
-        f = h5py.File('/home/yancui/ppimae/'+'{}_multiomics.h5'.format(dataset), 'r') 
+        f = h5py.File('/data/civy/SMG/smg_data/'+'{}_multiomics.h5'.format(dataset), 'r')         
     src, dst = np.nonzero(f['network'][:])
     graph = dgl.graph((src, dst))
     graph.ndata['name'] = torch.arange(f['features'][:].shape[0]).unsqueeze(1)
@@ -131,7 +142,7 @@ def get_ppi(dataset=0, essential_gene=False, health_gene=False):
     gene_name = f['gene_names'][...,-1].astype(str)
     gene_map = {g:i for i, g in enumerate(gene_name)}
     neg_label = pd.read_csv(PATH + 'health.tsv', sep='\t').astype(str)['symbol'].tolist()
-    neg_test_mask = [gene_map[g] for g in list(set(neg_label) & set(gene_name[~graph.ndata['train_mask']]))]
+    neg_test_mask = [gene_map[g] for g in sorted(list(set(neg_label) & set(gene_name[~(graph.ndata['train_mask'] | graph.ndata['val_mask'])])))]
     label_transfer = torch.zeros(len(gene_name), dtype=torch.float)
 
     label = np.logical_or(np.logical_or(f['y_test'][:], f['y_val'][:]), f['y_train'][:]).squeeze() 
@@ -141,13 +152,14 @@ def get_ppi(dataset=0, essential_gene=False, health_gene=False):
     label_transfer[neg_test_mask] = 1
     
     y_test = graph.ndata['label'][graph.ndata['test_mask']].squeeze(-1)
+    y_neg = np.arange(graph.ndata['test_mask'].shape[0])[graph.ndata['label'].squeeze(-1) == 0]
     
-    transfer_mask = torch.arange(graph.ndata['test_mask'].shape[0])[graph.ndata['test_mask']][y_test==1].tolist() + neg_test_mask
-    return graph, (graph.ndata["feat"].shape[1], 2)
+    transfer_mask = torch.arange(graph.ndata['test_mask'].shape[0])[graph.ndata['test_mask']][y_test==1].tolist() +  list(set(neg_test_mask) & set(y_neg))
 
+    return graph, (graph.ndata["feat"].shape[1], 1)
 
 def get_new_ppi_c(e=False, h=False):
-    interactions = pd.read_csv('/home/yancui/ppimae/ConsensusPathDB_human_PPI.gz',
+    interactions = pd.read_csv('/data/civy/SMG/smg_data/ConsensusPathDB_human_PPI.gz',
                             compression='gzip',
                             header=1,
                             sep='\t',
@@ -155,7 +167,6 @@ def get_new_ppi_c(e=False, h=False):
                             )
     interactions_nona = interactions.dropna()
     interactions_nona.head()
-
     # select interactions with exactly two partners
     binary_inter = interactions_nona[interactions_nona.interaction_participants__genename.str.count(',') == 1]
     # split the interactions columns into interaction partners
@@ -166,7 +177,6 @@ def get_new_ppi_c(e=False, h=False):
     edgelist.set_index([np.arange(edgelist.shape[0])], inplace=True)
     edgelist.columns = ['partner1', 'partner2', 'confidence']
 
-    # select interactions with confidence score above threshold
     high_conf_edgelist = edgelist[edgelist.confidence > .5]
 
     _, gene_list_1 = pd.factorize(high_conf_edgelist['partner1'])
@@ -174,8 +184,7 @@ def get_new_ppi_c(e=False, h=False):
     _, gene_list_2 = pd.factorize(high_conf_edgelist['partner2'])
 
 
-    feature_list =  pd.read_csv('/home/yancui/ppimae/multiomics_features.tsv', sep='\t')
-
+    feature_list =  pd.read_csv('/data/civy/SMG/smg_data/multiomics_features.tsv', sep='\t')
 
     feature_name = feature_list['Unnamed: 0'].tolist() 
 
@@ -194,38 +203,33 @@ def get_new_ppi_c(e=False, h=False):
     feature = [feature_list.iloc[feature_map[g], 1:].tolist() for g in sorted(list(set(gene_list) & set(feature_name)))]
 
 
-
     feats =  torch.zeros((len(gene_map), 64))
 
     feats[mask] = torch.tensor(feature, dtype=torch.float)
     
-    #print(feats)
-
-
-    #label = pd.read_csv('/home/yancui/ppimae/NCG_cancerdrivers_annotation_supporting_evidence.tsv', sep='\t')['symbol'].tolist()
 
     graph = dgl.graph((src, dst))
 
     if e:
-        f = h5py.File('/home/yancui/ppimae/CPDB_essential_test01_multiomics.h5', 'r')
+        f = h5py.File('/data/civy/SMG/smg_data/CPDB_essential_test01_multiomics.h5', 'r')
     else:
-        f = h5py.File('/home/yancui/ppimae/CPDB_multiomics.h5', 'r')
+        f = h5py.File('/data/civy/SMG/smg_data/CPDB_multiomics.h5', 'r')
     gene_name = f['gene_names'][...,-1].astype(str)
     label = np.logical_or(np.logical_or(f['y_test'][:], f['y_val'][:]), f['y_train'][:]).squeeze(-1)
 
     if h:      
         neg_label = gene_name[label]  
-        label = pd.read_csv('/home/yancui/ppimae/graphmae/datasets/health.tsv', sep='\t').astype(str)['symbol'].tolist()
-        mask = [gene_map[g] for g in list(set(label) & set(gene_list))]
+        label = pd.read_csv('/data/civy/SMG/smg_data/health.tsv', sep='\t').astype(str)['symbol'].tolist()
+        mask = [gene_map[g] for g in sorted(list(set(label) & set(gene_list)))]
         np.random.seed(42)
-        neg_mask = np.random.choice(list(set(np.arange(len(gene_list))) - set(mask)), min(len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
+        neg_mask = np.random.choice(sorted(list(set(np.arange(len(gene_list))) - set(mask))), min(len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
     
     else:
         label = gene_name[label]  
-        mask = [gene_map[g] for g in list(set(label) & set(gene_list))]
+        mask = [gene_map[g] for g in sorted(list(set(label) & set(gene_list)))]
         np.random.seed(42)
-        neg_mask = np.random.choice(list(set(np.arange(len(gene_list))) - set(mask)), min(3 * len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
-        
+        neg_mask = np.random.choice(sorted(list(set(np.arange(len(gene_list))) - set(mask))), min(3 * len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
+    
 
     label = torch.zeros(len(gene_list), dtype=torch.float)
 
@@ -234,9 +238,9 @@ def get_new_ppi_c(e=False, h=False):
 
     final_mask = mask + neg_mask
 
-    train_mask, test_mask, _, _ = train_test_split(final_mask, label[final_mask].numpy(), test_size = 0.8, shuffle=True, stratify=label[final_mask].numpy(), random_state=42)
+    train_mask, test_mask, _, _ = train_test_split(final_mask, label[final_mask].numpy(), test_size = 0.2, shuffle=True, stratify=label[final_mask].numpy(), random_state=42)
 
-    train_mask, val_mask, _, _ = train_test_split(train_mask, label[train_mask].numpy(), test_size = 0.9, shuffle=True, stratify=label[train_mask].numpy(),random_state=42)
+    train_mask, val_mask, _, _ = train_test_split(train_mask, label[train_mask].numpy(), test_size = 0.2, shuffle=True, stratify=label[train_mask].numpy(),random_state=42)
 
     
     graph.ndata['feat'] = feats
@@ -267,7 +271,7 @@ def get_new_ppi_c(e=False, h=False):
     
 def get_new_ppi_I(e=False, h=False):
 
-    high_conf_edgelist = pd.read_csv('/home/yancui/ppimae/IREF_symbols_20190730.tsv', sep='\t')
+    high_conf_edgelist = pd.read_csv('/data/civy/SMG/smg_data/IREF_symbols_20190730.tsv', sep='\t')
 
 
     _, gene_list_1 = pd.factorize(high_conf_edgelist['partner1'])
@@ -275,12 +279,14 @@ def get_new_ppi_I(e=False, h=False):
     _, gene_list_2 = pd.factorize(high_conf_edgelist['partner2'])
 
 
-    feature_list =  pd.read_csv('/home/yancui/ppimae/multiomics_features.tsv', sep='\t')
+    feature_list =  pd.read_csv('/data/civy/SMG/smg_data/multiomics_features.tsv', sep='\t')
 
 
     feature_name = feature_list['Unnamed: 0'].tolist() 
+    
 
     gene_list = sorted(list((set(gene_list_1) | set(gene_list_2))))
+    
 
     gene_map  = {g: i for i, g in enumerate(gene_list)}
 
@@ -306,28 +312,29 @@ def get_new_ppi_I(e=False, h=False):
     #label = pd.read_csv('/home/yancui/ppimae/NCG_cancerdrivers_annotation_supporting_evidence.tsv', sep='\t')['symbol'].tolist()
 
     if e:
-        f = h5py.File('/home/yancui/ppimae/IRefIndex_2015_essential_test01_multiomics.h5', 'r')
+        f = h5py.File('/data/civy/SMG/smg_data/IRefIndex_2015_essential_test01_multiomics.h5', 'r')
     else:
-        f = h5py.File('/home/yancui/ppimae/IRefIndex_2015_multiomics.h5', 'r')
+        f = h5py.File('/data/civy/SMG/smg_data/IRefIndex_2015_multiomics.h5', 'r')
 
     gene_name = f['gene_names'][...,-1].astype(str)
     label = np.logical_or(np.logical_or(f['y_test'][:], f['y_val'][:]), f['y_train'][:]).squeeze(-1)
 
+
     if h:      
         neg_label = gene_name[label]  
-        label = pd.read_csv('/home/yancui/ppimae/graphmae/datasets/health.tsv', sep='\t').astype(str)['symbol'].tolist()
-        mask = [gene_map[g] for g in list(set(label) & set(gene_list))]
+        label = pd.read_csv('/data/civy/SMG/smg_data/health.tsv', sep='\t').astype(str)['symbol'].tolist()
+        mask = [gene_map[g] for g in sorted(list(set(label) & set(gene_list)))]
         np.random.seed(42)
-        neg_mask = np.random.choice(list(set(np.arange(len(gene_list))) - set(mask)), min(len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
+        neg_mask = np.random.choice(sorted(list(set(np.arange(len(gene_list))) - set(mask))), min(len(mask), len(gene_list) - len(mask)) , replace=False).tolist()
     
     else:
         label = gene_name[label]  
-        mask = [gene_map[g] for g in list(set(label) & set(gene_list))]
+        mask = [gene_map[g] for g in sorted(list(set(label) & set(gene_list)))]
         np.random.seed(42)
-        neg_mask = np.random.choice(list(set(np.arange(len(gene_list))) - set(mask)), min(3 * len(mask),len(gene_list) - len(mask)) , replace=False).tolist()
-            
-    mask = [gene_map[g] for g in list(set(label) & set(gene_list))]
-
+        neg_mask = np.random.choice(sorted(list(set(np.arange(len(gene_list))) - set(mask))), min(3 * len(mask), len(gene_list) - len(mask)) , replace=False).tolist()
+        
+    #torch.use_deterministic_algorithms(True)
+    
     label = torch.zeros(len(gene_list), dtype=torch.float)
     label[mask] = 1
     labels = label.unsqueeze(1)
@@ -342,6 +349,7 @@ def get_new_ppi_I(e=False, h=False):
     graph.ndata['feat'] = feats
 
     graph.ndata['label'] = labels
+    
 
     index = torch.zeros(len(gene_list), dtype=torch.bool)
     index[train_mask] = 1
@@ -361,26 +369,8 @@ def get_new_ppi_I(e=False, h=False):
     
     graph = dgl.add_self_loop(graph)
     
-    #print(sorted(final_mask))
     
     return graph, (graph.ndata["feat"].shape[1], 1)
-
-def get_brca_ppi():
-    f = h5py.File('cancerspecific_BRCA_averaged/CPDB_multiomics_BRCA_avg.h5', 'r') 
-    src, dst = np.nonzero(f['network'][:])
-    graph = dgl.graph((src, dst))
-    graph.ndata['name'] = torch.arange(f['features'][:].shape[0]).unsqueeze(1)
-    graph.ndata['feat'] = torch.from_numpy(f['features'][:])
-    graph.ndata['train_mask'] = torch.from_numpy(f['mask_train'][:])
-    graph.ndata['val_mask'] = torch.from_numpy(f['mask_test'][:])
-    graph.ndata['test_mask'] = torch.from_numpy(f['mask_test'][:])
-    full_mask = np.arange(graph.ndata['val_mask'].shape[0])[graph.ndata['test_mask'] | graph.ndata['train_mask']]
-    graph.ndata['label'] = torch.from_numpy(np.logical_or(np.logical_or(f['y_test'][:], f['y_val'][:]), f['y_train'][:])).float()
-    #print(graph.ndata['label'][graph.ndata['train_mask']].sum(), graph.ndata['label'][graph.ndata['train_mask']].shape[0])
-    return graph, (graph.ndata["feat"].shape[1], 2)
-
-
-
 
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -397,7 +387,7 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
         model.train()
 
         loss, loss_dict = model(graph, x)
-
+        
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -415,12 +405,8 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
 from sklearn.model_selection import StratifiedKFold
 
 from sklearn import metrics
-def result(pred, true):
-    #print(pred)
-    aa =  torch.sigmoid(pred).detach().cpu()
-    precision, recall, _thresholds = metrics.precision_recall_curve(true, aa)
-    area = metrics.auc(recall, precision)
-    return metrics.roc_auc_score(true, aa), area, precision, recall
+
+#import zzz
 
 def main(args):
     device = args.device if args.device >= 0 else "cpu"
@@ -446,10 +432,22 @@ def main(args):
     logs = args.logging
     use_scheduler = args.scheduler
 
-    graph, (num_features, num_classes) = get_ppi(dataset=args.ppi, essential_gene=args.essential, health_gene=args.health)
+    set_random_seed(42)
+
+    
+    if args.ppi < 6:
+        graph, (num_features, num_classes) = get_ppi(dataset=args.ppi, essential_gene=args.essential, health_gene=args.health) 
+    elif args.ppi == 6:
+        graph, (num_features, num_classes) = get_new_ppi_c(h=args.health, e=args.essential)
+    elif args.ppi == 7:
+        graph, (num_features, num_classes) = get_new_ppi_I(h=args.health, e=args.essential)
+    
+
+    #print(set(g.ndata['test_mask']) & set(graph.ndata['test_mask']))
     #graph, (num_features, num_classes), label_transfer, transfer_mask = get_ppi(dataset=args.ppi, essential_gene=args.essential, health_gene=args.health)       
 
     #graph, (num_features, num_classes) = get_new_ppi_I(h=True)
+    #graph, (num_features, num_classes) = get_new_ppi_I(e=True)
 
     #raph, (num_features, num_classes) = get_ppi
     #graph, (num_features, num_classes) = get_ppi(dataset=args.ppi, essential_gene=args.essential, health_gene=args.health)
@@ -457,17 +455,23 @@ def main(args):
     train_mask = graph.ndata['train_mask'] 
     test_mask = graph.ndata['test_mask']
     val_mask = graph.ndata['val_mask']
-    
+
+    set_random_seed(42)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     
     mask = (train_mask | test_mask | val_mask )
     
     print(val_mask.sum(), test_mask.sum(), train_mask.sum())
     
+
+    '''g, (num_features, num_classes)  = get_health(dataset=Dataset[args.ppi])
+    health_index =  torch.arange(graph.ndata['train_mask'].shape[0])[(g.ndata['test_mask'] |g.ndata['val_mask']).squeeze()]
+    graph.ndata['train_mask'][health_index] = 0
+    graph.ndata['val_mask'][health_index] = 0'''
+
     
     indices = np.arange(mask.shape[0])[mask.squeeze()]
-    
-    
+     
     y = graph.ndata['label'].squeeze()[mask.squeeze()].numpy()
     
     
@@ -475,34 +479,40 @@ def main(args):
 
     acc_list = []
     estp_acc_list = []
- 
+    
+    if args.health:
+        run_time = 10
+    else:
+        run_time = 10
+    
+    set_random_seed(42)
     for i, (train_ind, test_ind) in enumerate(skf.split(indices, y)):
-        
-        if i == 1:
-            
-        
-            train_index = indices[train_ind]
-            test_index = indices[test_ind]
-            
-            train_index, val_index, _, _ = train_test_split(train_index, y[train_ind], test_size = 0.2, shuffle=True, stratify=y[train_ind], random_state=42) 
-            
-            index = torch.zeros(mask.shape[0], dtype=torch.bool)
-            index[train_index] = 1
+  
+        if i < run_time:
 
-            graph.ndata['train_mask'] = index.unsqueeze(1)
+            if run_time == 10:
+                train_index = indices[train_ind]
+                test_index = indices[test_ind]
+                
+                train_index, val_index, _, _ = train_test_split(train_index, y[train_ind], test_size = 0.2, shuffle=True, stratify=y[train_ind], random_state=42) 
+                
+                index = torch.zeros(mask.shape[0], dtype=torch.bool)
+                index[train_index] = 1
 
-            index = torch.zeros(mask.shape[0], dtype=torch.bool)
-            index[test_index] = 1
+                graph.ndata['train_mask'] = index.unsqueeze(1)
 
-            graph.ndata['test_mask'] = index.unsqueeze(1)
+                index = torch.zeros(mask.shape[0], dtype=torch.bool)
+                index[test_index] = 1
 
-            index = torch.zeros(mask.shape[0], dtype=torch.bool)
-            index[val_index] = 1
+                graph.ndata['test_mask'] = index.unsqueeze(1)
 
-            graph.ndata['val_mask'] = index.unsqueeze(1)
+                index = torch.zeros(mask.shape[0], dtype=torch.bool)
+                index[val_index] = 1
+
+                graph.ndata['val_mask'] = index.unsqueeze(1)
             
             print(f"####### Run {0} for seed {0}")
-            set_random_seed(0)
+
             
             if logs:
                 logger = TBLogger(name=f"{dataset_name}_loss_{loss_fn}_rpr_{replace_rate}_nh_{num_hidden}_nl_{num_layers}_lr_{lr}_mp_{max_epoch}_mpf_{max_epoch_f}_wd_{weight_decay}_wdf_{weight_decay_f}_{encoder_type}_{decoder_type}")
@@ -510,7 +520,7 @@ def main(args):
                 logger = None
 
 
-            model = build_model(args)
+            model = build_model(args).double()
             model.to(device)
             optimizer = create_optimizer(optim_type, model, lr, weight_decay)
 
@@ -522,7 +532,7 @@ def main(args):
                 scheduler = None
             
                 
-            x = graph.ndata["feat"].float()
+            x = graph.ndata["feat"].double()
             if not load_model:
                 model = pretrain(model, graph, x, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger)
                 model = model.cpu()
@@ -535,14 +545,14 @@ def main(args):
                 torch.save(model.state_dict(), "checkpoint.pt")
             
             model = model.to(device)
-            model.eval()
+            #model.eval()
 
 
             scheduler_f = None   
 
             
             inducive_dataset = args.inductive_ppi
-            final_acc, estp_acc, precision, recall, best_model = node_classification_evaluation(model, inducive_dataset, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, scheduler_f, linear_prob=False)
+            final_acc, estp_acc, precision, recall, best_model = node_classification_evaluation(model.double(), inducive_dataset, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, scheduler_f, linear_prob=False)
 
 
             if logger is not None:
@@ -550,9 +560,12 @@ def main(args):
 
             output, embed = best_model(graph.to(device), x.to(device), return_hidden=True)
             
-
-            #oc_auc, area, precision, recall = result(output[test_index], label[test_index].detach().cpu().numpy())
-        
+            
+    
+            #roc_auc, area, precision, recall = result(output[g.ndata['test_mask'].squeeze()].detach().cpu(), g.ndata['label'].squeeze().detach().cpu().numpy()[g.ndata['test_mask'].squeeze()])
+            
+            #print(area)
+            
             acc_list.append(estp_acc)
             estp_acc_list.append(estp_acc)
     
@@ -564,13 +577,15 @@ def main(args):
     
     final_acc, final_acc_std = np.mean(acc_list), np.std(acc_list)
     estp_acc, estp_acc_std = np.mean(estp_acc_list), np.std(estp_acc_list)
-    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+    #print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+    #print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
     if args.max_epoch > 2:
         args.encoder = "smg"
-    np.savetxt('{}_c_precision.txt'.format(args.encoder), precision)
-    np.savetxt('{}_c_recall.txt'.format(args.encoder), recall)
-
+    #np.savetxt('{}_{}_fold1_precision.txt'.format(args.ppi, args.encoder), precision)
+    #np.savetxt('{}_{}_fold1_recall.txt'.format(args.ppi, args.encoder), recall)
+    print(f"# final_acc: {np.max(acc_list):.4f}/{np.median(acc_list):.4f}/{np.min(acc_list):.4f}")
+    print(f"# final_acc: {np.mean(acc_list):.4f}/{np.std(acc_list):.4f}")
+    
     return graph, x, best_model
 
 
@@ -729,7 +744,7 @@ def extract_subgraph(g, node):
 
 
 def IG(graph, feat, model):
-    h = graph.ndata['feat'].clone().requires_grad_(True).float()
+    h = graph.ndata['feat'].clone().requires_grad_(True)
     ig = IntegratedGradients(partial(model.forward, graph))
     # Attribute the predictions for node class 0 to the input features
     feat_attr = ig.attribute(h, target=0, internal_batch_size=graph.num_nodes(), n_steps=50)
@@ -740,6 +755,7 @@ def IG(graph, feat, model):
 
 # Press the green button in the gutter to run the script.
 if __name__ == "__main__":
+    set_random_seed(42)
     args = build_args()
     if args.use_cfg:
         args = load_best_configs(args, "configs.yml")
