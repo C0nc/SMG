@@ -116,7 +116,7 @@ Epoch 59 | train_loss: 0.1025: 100%|██████████████�
 
 Get the data from this Google Drive link:
 
-[https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link](https://drive.google.com/file/d/1Kfj2xdCbmRPpRn9s-0BqP33Z5wzoyv2m/view?usp=drive_link)
+[https://drive.google.com/file/d/10Bs1-TJZS4BFaVLxI1dR7_127Xhp2nEN/view?usp=drive_link]
 
 ## License
 
